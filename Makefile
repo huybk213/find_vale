@@ -1,4 +1,4 @@
 findval: find_val.c
 	gcc -o $@ $< -I.
 clean:
-	rm -f find
+	rm -f findval
