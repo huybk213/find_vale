@@ -43,6 +43,7 @@ void main(int argc, char * argv[])
     FILE * f_output = NULL;
     char * input_file_buffer = NULL;
 
+    // Parse argv
     for (uint32_t i = 1; i < argc; i++)
     {
         // printf("argv \"%s\"\r\n", argv[i]);
@@ -74,7 +75,7 @@ void main(int argc, char * argv[])
         return;
     }
 
-    printf("Input file %s\r\nOutput file %s\r\nPattern to find %s\r\n", argv[input_idx], argv[output_idx], argv[pattern_idx]);
+    printf("Input file %s\r\nOutput file %s\r\nPattern to find \"%s\"\r\n", argv[input_idx], argv[output_idx], argv[pattern_idx]);
     if (!file_exist(argv[input_idx]))
     {
         return;
@@ -86,6 +87,8 @@ void main(int argc, char * argv[])
     int val_size = -1, begin_idx = -1, found_end_idx = -1;
     int val_max_len = strlen(argv[pattern_idx]);
 
+
+    // Find begin pattern and end pattern
     for (int i = 0; i < val_max_len; i++)
     {
         if (*(argv[pattern_idx] + i) == ',')
@@ -115,6 +118,7 @@ void main(int argc, char * argv[])
         return;
     }
     
+    // Copy pattern to buffer
     char * pattern_begin_str = (char*)calloc(begin_idx + 1, 1);
     char * pattern_end_str = (char*)calloc(val_max_len - begin_idx, 1);
     // char * val_character = (char*)calloc(end_idx - begin_idx, 0);
@@ -130,16 +134,18 @@ void main(int argc, char * argv[])
         return;
     }
 
-    printf("Pattern size %d-%d\r\n", begin_idx, val_max_len - begin_idx - 1);
+    // printf("Pattern size %d-%d\r\n", begin_idx, val_max_len - begin_idx - 1);
 
     memcpy(pattern_begin_str, argv[pattern_idx], begin_idx);
     memcpy(pattern_end_str, argv[pattern_idx]+ begin_idx + 1, val_max_len - begin_idx - 1);
     // memcpy(val_character, argv[pattern_idx] + begin_idx + 1, end_idx - begin_idx - 1);
-    printf("Find number between \"%s\" and \"%s\"\r\n", pattern_begin_str, pattern_end_str);
+    // printf("Find number between \"%s\" and \"%s\"\r\n", pattern_begin_str, pattern_end_str);
 
 
     int file_size;
+    int pattern_begin_size = begin_idx;
 
+    // Get input file size
     f_input = fopen(argv[input_idx], "rb");
     if (f_input == NULL)
     {
@@ -154,6 +160,7 @@ void main(int argc, char * argv[])
     }
     fseek(f_input, 0L, SEEK_SET);
 
+    // Copy input file into input buffer
     input_file_buffer = (char*)calloc(file_size + 1, 1);
     if (input_file_buffer == NULL)
     {
@@ -162,20 +169,21 @@ void main(int argc, char * argv[])
     }
     else
     {
-        printf("Input file size %d\r\n", file_size);
+        // printf("Input file size %d\r\n", file_size);
     }
     
-
     int result = fread(input_file_buffer, 1, file_size, f_input);
     if (result != file_size) 
     {
         // fputs ("Reading error\r\n", stderr);
         perror("Reading error : ");
+        goto end;
     }
 
     char * tmp_p = input_file_buffer;
     int found_val_count = 0;
 
+    // Create result file
     f_output = fopen(output_file_name, "wb");
     if (f_output == NULL)
     {
@@ -183,8 +191,10 @@ void main(int argc, char * argv[])
         goto end;
     }
 
+    // Copy data into result file
     while(1)
     {
+        // Find data between "begin" and "end"
         char * tmp_pattern_begin = NULL;
         char * tmp_pattern_end = NULL;
         int val_size = 0;
@@ -192,8 +202,12 @@ void main(int argc, char * argv[])
             && (tmp_pattern_end = strstr(tmp_p, pattern_end_str))
             && ((val_size = tmp_pattern_end - tmp_pattern_begin) > 0))
         {
+            // Maybe we found begin into result buffer =>> continuos find
+            // example ,acbacs,asdasdasd,123123mV. We want to find "123123" between text ",123123mV"
+            // But input have a lot of string "," =>> remove them
+
             char * hold_buffer = (char*)calloc(val_size + 1, 1);
-            memcpy(hold_buffer, &tmp_pattern_begin[strlen(pattern_begin_str)], val_size - strlen(pattern_begin_str));
+            memcpy(hold_buffer, &tmp_pattern_begin[pattern_begin_size], val_size - pattern_begin_size);
             char * tmp_buffer = hold_buffer;
             char * the_last = hold_buffer;
             while(1)
@@ -202,7 +216,7 @@ void main(int argc, char * argv[])
                 // printf("Find %s in %s\r\n", pattern_begin_str, tmp_buffer);
                 if (temp = strstr(tmp_buffer, pattern_begin_str))
                 {
-                    tmp_buffer = temp + strlen(pattern_begin_str);
+                    tmp_buffer = temp + pattern_begin_size;
                     the_last = temp;
                 }
                 else
@@ -215,9 +229,9 @@ void main(int argc, char * argv[])
 
             static int count = 0;
 
-            printf("[%d] : %s\r\n", count++, the_last);
+            // printf("[%d] : %s\r\n", count++, the_last);
             fwrite(the_last, 1, strlen(the_last), f_output);
-            fwrite("\r\n", 1, 2, f_output);
+            fwrite("\r\n", 1, 2, f_output);     // Easy to copy and paste to excel
             free(hold_buffer);
 
             tmp_p = tmp_pattern_end + strlen(pattern_end_str);
@@ -227,7 +241,6 @@ void main(int argc, char * argv[])
         {
             break;
         }
-        
     }
 
 end:
@@ -253,7 +266,7 @@ end:
         free(input_file_buffer);
     }
 
-    printf("Count %d\r\n", found_val_count);
+    // printf("Count %d\r\n", found_val_count);
     return;
 }
 
